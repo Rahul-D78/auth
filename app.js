@@ -33,7 +33,8 @@ mongoose.set('useCreateIndex', true);
 const userSchema = new mongoose.Schema({
     password:String,
     email: String,
-    googleId: String
+    googleId: String,
+    secret: String
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -62,6 +63,7 @@ passport.use(new GoogleStrategy({
     callbackURL: "http://localhost:3000/auth/google/secrets",
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
 }, (accessToken, refreshToken, profile, cb) => {
+    console.log(profile);
     User.findOrCreate({googleId: profile.id}, (err, user) => {
         return cb(err, user)
     });
@@ -81,12 +83,32 @@ app.get('/auth/google/secrets',
     res.redirect('/secrets');
 });  
 
-app.get('/secrets', (req, res) => {
-    if(req.isAuthenticated()) { 
-      res.render('secrets')
+app.get('/submit', (req, res) => {
+    if(req.isAuthenticated()) {
+        res.render('submit')
     }else {
-      res.redirect('/login')
+        res.redirect('/login')
     }
+})
+
+// app.get('/secrets', (req, res) => {
+//     if(req.isAuthenticated()) {
+//         res.render('secrets')
+//     }else {
+//         res.redirect('/login')
+//     }
+// })
+
+app.get('/secrets', (req, res) => {
+    
+    User.find({secret: {$ne: null}}, (err, foundUsers) => {
+        if(err){
+            throw err
+        }
+        if(foundUsers) {
+            res.render('secrets', {allSecrets: foundUsers})
+        }
+    })
 })
 
 app.get('/register', (req, res) => {
@@ -95,6 +117,22 @@ app.get('/register', (req, res) => {
 
 app.get('/login', (req, res) => {
     res.render('login')
+})
+
+app.post('/submit', (req, res) => {
+   User.findById(req.user.id, (err, foundUser) => {
+       if(err) throw err
+       if(foundUser) {
+           //we are seeting founduser secret field to the submitted user secret
+           foundUser.secret = req.body.secret;
+           foundUser.save()
+           .then(() => {
+               res.redirect('/secrets')
+           }).catch((e) => {
+               console.log(e);
+           })
+       }
+   })
 })
 
 app.post('/register', (req, res) => {
