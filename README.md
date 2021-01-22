@@ -10,3 +10,9 @@
 
 ## Database setup :
 I have setup my db in local but you can do the same in cloud also 
+
+## Installation :
+```$npm install```
+
+## run :
+```$npm start```
