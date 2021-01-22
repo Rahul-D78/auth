@@ -1,16 +1,17 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const encrypt = require('mongoose-encryption')
+const bcrypt = require('bcrypt')
 // const session = require('express-session');
 // const passport = require('passport');
 // const passportLocalMongoose = require('passport-local-mongoose');
+
+const saltRounds = 10
 
 const app = express();
 app.use(bodyParser.urlencoded({extended:true}));
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-
 
 // app.use(session({
 //     secret: "our little secret",
@@ -35,7 +36,6 @@ const userSchema = new mongoose.Schema({
     email: String
 });
 
-userSchema.plugin(encrypt, {secret: secret, encryptedFields: ['password']})
 // userSchema.plugin(passportLocalMongoose);
 
 const User = new mongoose.model("User", userSchema);
@@ -51,10 +51,10 @@ app.get('/login', (req, res) => {
 
 app.post('/register', (req, res) => {
     
-    console.log(req.body.password);
+    bcrypt.hash(req.body.password, saltRounds, (err, hash) =>{
 
     let newUser = new User({
-        password: req.body.password,
+        password: hash,
         email: req.body.username
     }) 
     newUser.save()
@@ -62,6 +62,8 @@ app.post('/register', (req, res) => {
         res.render('secrets')
     }).catch((e) => {
         res.redirect('/register')
+    })
+    if(err) throw err
     })
 })
 
@@ -71,13 +73,12 @@ app.post('/login', (req, res) => {
 
     User.findOne({email: userName}, (e, foundUser) => {
         if(e) throw e
-        else {
-            if(foundUser) {
-              if(foundUser.password === pass) {
-                  res.render('secrets')
-              }
-            }
-        }
+        if(foundUser) 
+        bcrypt.compare(pass, foundUser.password, (err, result) => {
+            if(result)
+            res.render('secrets')
+            res.redirect('/login')
+        })    
     })
 })
 
